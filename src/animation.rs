@@ -109,6 +109,13 @@ pub enum AnimationState {
     Finished,
 }
 
+/// Which pane is currently active
+#[derive(Debug, Clone, PartialEq)]
+pub enum ActivePane {
+    Editor,
+    Terminal,
+}
+
 /// Main animation engine
 pub struct AnimationEngine {
     pub buffer: EditorBuffer,
@@ -123,6 +130,7 @@ pub struct AnimationEngine {
     viewport_height: usize,
     pub current_file_index: usize,
     pub terminal_lines: Vec<String>,
+    pub active_pane: ActivePane,
 }
 
 impl AnimationEngine {
@@ -140,6 +148,7 @@ impl AnimationEngine {
             viewport_height: 20, // Default, will be updated from UI
             current_file_index: 0,
             terminal_lines: Vec::new(),
+            active_pane: ActivePane::Terminal, // Start with terminal (git checkout)
         }
     }
 
@@ -388,26 +397,31 @@ impl AnimationEngine {
     fn execute_step(&mut self, step: AnimationStep) {
         match step {
             AnimationStep::InsertChar { line, col, ch } => {
+                self.active_pane = ActivePane::Editor;
                 self.buffer.insert_char(line, col, ch);
                 self.buffer.cursor_line = line;
                 self.buffer.cursor_col = col + 1;
             }
             AnimationStep::DeleteChar { line, col } => {
+                self.active_pane = ActivePane::Editor;
                 self.buffer.delete_char(line, col);
                 self.buffer.cursor_line = line;
                 self.buffer.cursor_col = col;
             }
             AnimationStep::InsertLine { line, content } => {
+                self.active_pane = ActivePane::Editor;
                 self.buffer.insert_line(line, content);
                 self.buffer.cursor_line = line;
                 self.buffer.cursor_col = 0;
             }
             AnimationStep::DeleteLine { line } => {
+                self.active_pane = ActivePane::Editor;
                 self.buffer.delete_line(line);
                 self.buffer.cursor_line = line;
                 self.buffer.cursor_col = 0;
             }
             AnimationStep::MoveCursor { line, col } => {
+                self.active_pane = ActivePane::Editor;
                 self.buffer.cursor_line = line;
                 self.buffer.cursor_col = col;
             }
@@ -418,21 +432,25 @@ impl AnimationEngine {
                 file_index,
                 content,
             } => {
+                self.active_pane = ActivePane::Editor;
                 // Switch to new file
                 self.current_file_index = file_index;
                 self.buffer = EditorBuffer::from_content(&content);
             }
             AnimationStep::TerminalPrompt => {
+                self.active_pane = ActivePane::Terminal;
                 // Start a new command line with prompt
                 self.terminal_lines.push("$ ".to_string());
             }
             AnimationStep::TerminalTypeChar { ch } => {
+                self.active_pane = ActivePane::Terminal;
                 // Add character to the last terminal line
                 if let Some(last_line) = self.terminal_lines.last_mut() {
                     last_line.push(ch);
                 }
             }
             AnimationStep::TerminalOutput { text } => {
+                self.active_pane = ActivePane::Terminal;
                 // Add output line
                 self.terminal_lines.push(text);
             }

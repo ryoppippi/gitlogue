@@ -1,4 +1,4 @@
-use crate::animation::AnimationEngine;
+use crate::animation::{ActivePane, AnimationEngine};
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -55,8 +55,11 @@ impl EditorPane {
                 // Line separator
                 spans.push(Span::styled("│ ", Style::default().fg(Color::DarkGray)));
 
-                // Check if cursor is on this line
-                if is_cursor_line && engine.cursor_visible {
+                // Check if cursor is on this line and editor is active
+                if is_cursor_line
+                    && engine.cursor_visible
+                    && engine.active_pane == ActivePane::Editor
+                {
                     // Insert cursor character (use char indices, not byte indices)
                     let cursor_col = engine.buffer.cursor_col;
                     let chars: Vec<char> = line_content.chars().collect();
