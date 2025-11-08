@@ -169,38 +169,62 @@ impl AnimationEngine {
 
     /// Generate animation steps for a file change
     fn generate_steps_for_file(&mut self, change: &FileChange) {
+        let mut current_cursor_line = 0;
+
         // Process each hunk
         for hunk in &change.hunks {
-            // Move cursor to the start of the hunk
-            self.steps.push(AnimationStep::MoveCursor {
-                line: hunk.old_start,
-                col: 0,
-            });
-            self.steps.push(AnimationStep::Pause { duration_ms: 500 });
+            // Move cursor line by line to the start of the hunk
+            let target_line = hunk.old_start;
+            current_cursor_line =
+                self.generate_cursor_movement(current_cursor_line, target_line);
 
-            self.generate_steps_for_hunk(hunk);
+            current_cursor_line = self.generate_steps_for_hunk(hunk, current_cursor_line);
+
             // Add pause between hunks
             self.steps.push(AnimationStep::Pause { duration_ms: 1500 });
         }
     }
 
+    /// Generate cursor movement steps from current line to target line
+    fn generate_cursor_movement(&mut self, from_line: usize, to_line: usize) -> usize {
+        if from_line == to_line {
+            return to_line;
+        }
+
+        if from_line < to_line {
+            // Move down
+            for line in (from_line + 1)..=to_line {
+                self.steps.push(AnimationStep::MoveCursor { line, col: 0 });
+                self.steps.push(AnimationStep::Pause { duration_ms: 50 });
+            }
+        } else {
+            // Move up
+            for line in (to_line..from_line).rev() {
+                self.steps.push(AnimationStep::MoveCursor { line, col: 0 });
+                self.steps.push(AnimationStep::Pause { duration_ms: 50 });
+            }
+        }
+
+        self.steps.push(AnimationStep::Pause { duration_ms: 300 });
+        to_line
+    }
+
     /// Generate animation steps for a diff hunk
-    fn generate_steps_for_hunk(&mut self, hunk: &DiffHunk) {
+    /// Returns the final cursor line position
+    fn generate_steps_for_hunk(&mut self, hunk: &DiffHunk, start_line: usize) -> usize {
         let mut current_old_line = hunk.old_start;
         let mut current_new_line = hunk.old_start;
+        let mut cursor_line = start_line;
 
         for line_change in &hunk.lines {
             match line_change.change_type {
                 LineChangeType::Deletion => {
                     // Delete the entire line
-                    self.steps.push(AnimationStep::MoveCursor {
-                        line: current_old_line,
-                        col: 0,
-                    });
                     self.steps.push(AnimationStep::DeleteLine {
                         line: current_old_line,
                     });
                     self.steps.push(AnimationStep::Pause { duration_ms: 300 });
+                    cursor_line = current_old_line;
                     // Don't increment new_line for deletions
                 }
                 LineChangeType::Addition => {
@@ -208,11 +232,6 @@ impl AnimationEngine {
                     self.steps.push(AnimationStep::InsertLine {
                         line: current_new_line,
                         content: String::new(),
-                    });
-
-                    self.steps.push(AnimationStep::MoveCursor {
-                        line: current_new_line,
-                        col: 0,
                     });
 
                     // Type each character
@@ -226,17 +245,28 @@ impl AnimationEngine {
                         col += 1;
                     }
 
+                    cursor_line = current_new_line;
                     current_new_line += 1;
                     current_old_line += 1;
                     self.steps.push(AnimationStep::Pause { duration_ms: 200 });
                 }
                 LineChangeType::Context => {
-                    // Just move cursor, no change
+                    // Move cursor to next line
+                    if current_new_line != cursor_line {
+                        self.steps.push(AnimationStep::MoveCursor {
+                            line: current_new_line,
+                            col: 0,
+                        });
+                        self.steps.push(AnimationStep::Pause { duration_ms: 50 });
+                    }
                     current_old_line += 1;
                     current_new_line += 1;
+                    cursor_line = current_new_line;
                 }
             }
         }
+
+        cursor_line
     }
 
     /// Update animation state and return true if display needs refresh
