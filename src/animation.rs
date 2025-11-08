@@ -290,25 +290,26 @@ impl AnimationEngine {
     /// Generate animation steps for a diff hunk
     /// Returns the final cursor line position
     fn generate_steps_for_hunk(&mut self, hunk: &DiffHunk, start_line: usize) -> usize {
-        let mut current_old_line = hunk.old_start;
-        let mut current_new_line = hunk.old_start;
+        // buffer_line tracks the actual line number in the current buffer
+        let mut buffer_line = hunk.old_start;
         let mut cursor_line = start_line;
 
         for line_change in &hunk.lines {
             match line_change.change_type {
                 LineChangeType::Deletion => {
-                    // Delete the entire line
+                    // Delete the entire line at current buffer position
                     self.steps.push(AnimationStep::DeleteLine {
-                        line: current_old_line,
+                        line: buffer_line,
                     });
                     self.steps.push(AnimationStep::Pause { duration_ms: 300 });
-                    cursor_line = current_old_line;
-                    // Don't increment new_line for deletions
+                    cursor_line = buffer_line;
+                    // After deletion, buffer_line stays the same
+                    // (the next line moves up to this position)
                 }
                 LineChangeType::Addition => {
-                    // Insert empty line first
+                    // Insert empty line at current buffer position
                     self.steps.push(AnimationStep::InsertLine {
-                        line: current_new_line,
+                        line: buffer_line,
                         content: String::new(),
                     });
 
@@ -316,30 +317,28 @@ impl AnimationEngine {
                     let mut col = 0;
                     for ch in line_change.content.chars() {
                         self.steps.push(AnimationStep::InsertChar {
-                            line: current_new_line,
+                            line: buffer_line,
                             col,
                             ch,
                         });
                         col += 1;
                     }
 
-                    cursor_line = current_new_line;
-                    current_new_line += 1;
-                    current_old_line += 1;
+                    cursor_line = buffer_line;
+                    buffer_line += 1; // Move to next line after insertion
                     self.steps.push(AnimationStep::Pause { duration_ms: 200 });
                 }
                 LineChangeType::Context => {
-                    // Move cursor to next line
-                    if current_new_line != cursor_line {
+                    // Move cursor to next line if needed
+                    if buffer_line != cursor_line {
                         self.steps.push(AnimationStep::MoveCursor {
-                            line: current_new_line,
+                            line: buffer_line,
                             col: 0,
                         });
                         self.steps.push(AnimationStep::Pause { duration_ms: 50 });
                     }
-                    current_old_line += 1;
-                    current_new_line += 1;
-                    cursor_line = current_new_line;
+                    cursor_line = buffer_line;
+                    buffer_line += 1; // Move to next line
                 }
             }
         }
