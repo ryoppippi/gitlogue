@@ -334,7 +334,9 @@ impl<'a> Widget for SelectableParagraph<'a> {
 
                 // Fill remaining space in content area
                 for x in x_pos..no_wrap_content_width {
-                    if let Some(cell) = buf.cell_mut((inner_area.x + self.padding.left + x as u16, render_y)) {
+                    if let Some(cell) =
+                        buf.cell_mut((inner_area.x + self.padding.left + x as u16, render_y))
+                    {
                         cell.set_style(fill_style);
                     }
                 }
@@ -394,7 +396,9 @@ impl<'a> Widget for SelectableParagraph<'a> {
                 // Fill remaining space to right edge (no right padding)
                 let remaining_width = continuation_width.saturating_sub(self.padding.left as usize);
                 for x in x_pos..remaining_width {
-                    if let Some(cell) = buf.cell_mut((inner_area.x + self.padding.left + x as u16, render_y)) {
+                    if let Some(cell) =
+                        buf.cell_mut((inner_area.x + self.padding.left + x as u16, render_y))
+                    {
                         cell.set_style(fill_style);
                     }
                 }
