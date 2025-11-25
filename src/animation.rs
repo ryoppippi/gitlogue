@@ -538,6 +538,13 @@ impl AnimationEngine {
         let mut current_cursor_line = 0;
         let mut line_offset = 0i64; // Track how buffer lines differ from old file
 
+        // Parse old_content into lines for indentation calculation during cursor movement
+        let old_lines: Vec<&str> = change
+            .old_content
+            .as_ref()
+            .map(|c| c.lines().collect())
+            .unwrap_or_default();
+
         // Process each hunk
         for hunk in &change.hunks {
             // Calculate target line in current buffer
@@ -548,8 +555,12 @@ impl AnimationEngine {
             // Calculate distance for speed adjustment
             let distance = target_line.abs_diff(current_cursor_line);
 
-            current_cursor_line =
-                self.generate_cursor_movement(current_cursor_line, target_line, distance);
+            current_cursor_line = self.generate_cursor_movement(
+                current_cursor_line,
+                target_line,
+                distance,
+                &old_lines,
+            );
 
             let (final_cursor_line, _final_buffer_line) =
                 self.generate_steps_for_hunk(hunk, current_cursor_line, target_line);
@@ -584,6 +595,7 @@ impl AnimationEngine {
         from_line: usize,
         to_line: usize,
         distance: usize,
+        lines: &[&str],
     ) -> usize {
         if from_line == to_line {
             return to_line;
@@ -635,7 +647,12 @@ impl AnimationEngine {
 
         for line in positions {
             if line != from_line {
-                self.steps.push(AnimationStep::MoveCursor { line, col: 0 });
+                // Calculate indentation (first non-whitespace character position)
+                let col = lines
+                    .get(line)
+                    .map(|l| l.chars().take_while(|c| c.is_whitespace()).count())
+                    .unwrap_or(0);
+                self.steps.push(AnimationStep::MoveCursor { line, col });
                 self.steps.push(AnimationStep::Pause {
                     duration_ms: base_pause,
                 });
@@ -710,9 +727,15 @@ impl AnimationEngine {
                 LineChangeType::Context => {
                     // Move cursor to next line if needed
                     if buffer_line != cursor_line {
+                        // Calculate indentation (first non-whitespace character position)
+                        let col = line_change
+                            .content
+                            .chars()
+                            .take_while(|c| c.is_whitespace())
+                            .count();
                         self.steps.push(AnimationStep::MoveCursor {
                             line: buffer_line,
-                            col: 0,
+                            col,
                         });
                         self.steps.push(AnimationStep::Pause {
                             duration_ms: (self.speed_ms as f64 * CURSOR_MOVE_PAUSE) as u64,
@@ -851,7 +874,13 @@ impl AnimationEngine {
                 self.active_pane = ActivePane::Editor;
                 self.buffer.delete_line(line);
                 self.buffer.cursor_line = line;
-                self.buffer.cursor_col = 0;
+                // Set cursor to first non-whitespace position of the line that moved up
+                self.buffer.cursor_col = self
+                    .buffer
+                    .lines
+                    .get(line)
+                    .map(|l| l.chars().take_while(|c| c.is_whitespace()).count())
+                    .unwrap_or(0);
 
                 // Track line offset for old_highlights mapping
                 self.line_offset -= 1;
