@@ -36,6 +36,12 @@ cargo install gitlogue
 pacman -S gitlogue
 ```
 
+### Using Nix
+
+```bash
+nix run github:unhappychoice/gitlogue
+```
+
 ### From Source
 
 ```bash

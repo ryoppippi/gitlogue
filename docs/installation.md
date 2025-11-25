@@ -60,7 +60,25 @@ cargo install gitlogue
 
 This will download, compile, and install the latest version.
 
-### Method 5: Download Pre-built Binaries
+### Method 5: Using Nix
+
+Run directly without installation:
+
+```bash
+nix run github:unhappychoice/gitlogue
+```
+
+Or add to your flake inputs:
+
+```nix
+{
+  inputs.gitlogue.url = "github:unhappychoice/gitlogue";
+}
+```
+
+Then use `inputs.gitlogue.packages.${system}.default` in your configuration.
+
+### Method 6: Download Pre-built Binaries
 
 Pre-built binaries for multiple platforms are available in the [Releases](https://github.com/unhappychoice/gitlogue/releases) section.
 
@@ -84,7 +102,7 @@ Pre-built binaries for multiple platforms are available in the [Releases](https:
    sudo mv gitlogue /usr/local/bin/
    ```
 
-### Method 6: From Source
+### Method 7: From Source
 
 If you want to build the latest development version or contribute to the project:
 
