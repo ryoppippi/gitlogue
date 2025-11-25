@@ -127,8 +127,7 @@ fn matches_author(commit: &Git2Commit, pattern: &str) -> bool {
     let email = author.email().unwrap_or("");
     let pattern_lower = pattern.to_lowercase();
 
-    name.to_lowercase().contains(&pattern_lower)
-        || email.to_lowercase().contains(&pattern_lower)
+    name.to_lowercase().contains(&pattern_lower) || email.to_lowercase().contains(&pattern_lower)
 }
 
 pub struct GitRepository {
@@ -439,10 +438,7 @@ impl GitRepository {
 
         if commits.is_empty() {
             if self.author_filter.is_some() {
-                anyhow::bail!(
-                    "No commits found matching the author filter {}",
-                    context
-                );
+                anyhow::bail!("No commits found matching the author filter {}", context);
             }
             anyhow::bail!("No non-merge commits found {}", context);
         }
