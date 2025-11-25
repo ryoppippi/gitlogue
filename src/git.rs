@@ -150,13 +150,13 @@ fn matches_date_filter(
     let commit_date = DateTime::from_timestamp(timestamp, 0).unwrap_or_else(Utc::now);
 
     if let Some(before_date) = before {
-        if commit_date >= *before_date {
+        if commit_date > *before_date {
             return false;
         }
     }
 
     if let Some(after_date) = after {
-        if commit_date <= *after_date {
+        if commit_date < *after_date {
             return false;
         }
     }
